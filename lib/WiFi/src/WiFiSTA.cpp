@@ -603,7 +603,7 @@ IPAddress WiFiSTAClass::dnsIP(uint8_t dns_no)
         return IPAddress();
     }
     const ip_addr_t * dns_ip = dns_getserver(dns_no);
-    return IPAddress(dns_ip->addr);
+    return IPAddress(dns_ip->u_addr.ip4.addr);
 }
 
 /**
