@@ -1,0 +1,18 @@
+{
+  "name": "WiFi",
+  "version": "2.0.0",
+  "description": "ESP32 WiFi library with ESP-IDF compatibility fixes",
+  "authors": [
+    {
+      "name": "Espressif",
+      "maintainer": true
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/espressif/arduino-esp32"
+  },
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
+

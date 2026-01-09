@@ -18,6 +18,11 @@
 #include "camera_index.h"
 #include "Arduino.h"
 
+// Face detection can be disabled via build flag -DDISABLE_FACE_DETECTION in platformio.ini
+// or by uncommenting the line below:
+// #define DISABLE_FACE_DETECTION
+
+#ifndef DISABLE_FACE_DETECTION
 #include "fb_gfx.h"
 #include "fd_forward.h"
 #include "fr_forward.h"
@@ -33,6 +38,7 @@
 #define FACE_COLOR_YELLOW (FACE_COLOR_RED | FACE_COLOR_GREEN)
 #define FACE_COLOR_CYAN (FACE_COLOR_BLUE | FACE_COLOR_GREEN)
 #define FACE_COLOR_PURPLE (FACE_COLOR_BLUE | FACE_COLOR_RED)
+#endif
 
 typedef struct
 {
@@ -62,11 +68,13 @@ static ra_filter_t ra_filter;
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t camera_httpd = NULL;
 
+#ifndef DISABLE_FACE_DETECTION
 static mtmn_config_t mtmn_config = {0};
 static int8_t detection_enabled = 0;
 static int8_t recognition_enabled = 0;
 static int8_t is_enrolling = 0;
 static face_id_list id_list = {0};
+#endif
 
 static ra_filter_t *ra_filter_init(ra_filter_t *filter, size_t sample_size)
 {
@@ -100,6 +108,7 @@ static int ra_filter_run(ra_filter_t *filter, int value)
     return filter->sum / filter->count;
 }
 
+#ifndef DISABLE_FACE_DETECTION
 static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char *str)
 {
     fb_data_t fb;
@@ -235,6 +244,7 @@ static int run_face_recognition(dl_matrix3du_t *image_matrix, box_array_t *net_b
     dl_matrix3du_free(aligned_face);
     return matched_id;
 }
+#endif
 
 static size_t jpg_encode_stream(void *arg, size_t index, const void *data, size_t len)
 {
@@ -272,9 +282,13 @@ static esp_err_t capture_handler(httpd_req_t *req)
     size_t out_len, out_width, out_height;
     uint8_t *out_buf;
     bool s;
+#ifndef DISABLE_FACE_DETECTION
     bool detected = false;
     int face_id = 0;
     if (!detection_enabled || fb->width > 400)
+#else
+    if (true || fb->width > 400)  // Always skip face detection when disabled
+#endif
     {
         size_t fb_len = 0;
         if (fb->format == PIXFORMAT_JPEG)
@@ -295,6 +309,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
         return res;
     }
 
+#ifndef DISABLE_FACE_DETECTION
     dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
     if (!image_matrix)
     {
@@ -346,6 +361,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
 
     int64_t fr_end = esp_timer_get_time();
     Serial.printf("FACE: %uB %ums %s%d\n", (uint32_t)(jchunk.len), (uint32_t)((fr_end - fr_start) / 1000), detected ? "DETECTED " : "", face_id);
+#endif
     return res;
 }
 //图片帧流（实时视频）AAP
@@ -356,6 +372,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
     size_t _jpg_buf_len = 0;
     uint8_t *_jpg_buf = NULL;
     char *part_buf[64];
+#ifndef DISABLE_FACE_DETECTION
     dl_matrix3du_t *image_matrix = NULL;
     bool detected = false;
     int face_id = 0;
@@ -366,6 +383,9 @@ static esp_err_t stream_handler(httpd_req_t *req)
     int64_t fr_encode = 0;
 
     detection_enabled = 1;
+#else
+    int64_t fr_start = 0;
+#endif
     static int64_t last_frame = 0;
     if (!last_frame)
     {
@@ -381,8 +401,10 @@ static esp_err_t stream_handler(httpd_req_t *req)
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     while (true)
     {
+#ifndef DISABLE_FACE_DETECTION
         detected = false;
         face_id = 0;
+#endif
         fb = esp_camera_fb_get(); //获取一帧图像
         if (!fb)
         {
@@ -392,11 +414,15 @@ static esp_err_t stream_handler(httpd_req_t *req)
         else
         {
             fr_start = esp_timer_get_time();
+#ifndef DISABLE_FACE_DETECTION
             fr_ready = fr_start;
             fr_face = fr_start;
             fr_encode = fr_start;
             fr_recognize = fr_start;
             if (!detection_enabled || fb->width > 400)
+#else
+            if (true || fb->width > 400)  // Always skip face detection when disabled
+#endif
             {
                 if (fb->format != PIXFORMAT_JPEG)
                 {
@@ -415,6 +441,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
                     _jpg_buf = fb->buf;
                 }
             }
+#ifndef DISABLE_FACE_DETECTION
             else
             {
                 image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
@@ -475,6 +502,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
                     dl_matrix3du_free(image_matrix);
                 }
             }
+#endif
         }
         if (res == ESP_OK)
         {
@@ -614,6 +642,7 @@ static esp_err_t cmd_handler(httpd_req_t *req)
         res = s->set_wb_mode(s, val);
     else if (!strcmp(variable, "ae_level"))
         res = s->set_ae_level(s, val);
+#ifndef DISABLE_FACE_DETECTION
     else if (!strcmp(variable, "face_detect"))
     {
         detection_enabled = val;
@@ -632,6 +661,7 @@ static esp_err_t cmd_handler(httpd_req_t *req)
             detection_enabled = val;
         }
     }
+#endif
     else
     {
         res = -1;
@@ -678,10 +708,12 @@ static esp_err_t status_handler(httpd_req_t *req)
     p += sprintf(p, "\"vflip\":%u,", s->status.vflip);
     p += sprintf(p, "\"hmirror\":%u,", s->status.hmirror);
     p += sprintf(p, "\"dcw\":%u,", s->status.dcw);
-    p += sprintf(p, "\"colorbar\":%u,", s->status.colorbar);
-    p += sprintf(p, "\"face_detect\":%u,", detection_enabled);
-    p += sprintf(p, "\"face_enroll\":%u,", is_enrolling);
-    p += sprintf(p, "\"face_recognize\":%u", recognition_enabled);
+    p += sprintf(p, "\"colorbar\":%u", s->status.colorbar);
+#ifndef DISABLE_FACE_DETECTION
+    p += sprintf(p, ",\"face_detect\":%u", detection_enabled);
+    p += sprintf(p, ",\"face_enroll\":%u", is_enrolling);
+    p += sprintf(p, ",\"face_recognize\":%u", recognition_enabled);
+#endif
     *p++ = '}';
     *p++ = 0;
     httpd_resp_set_type(req, "application/json");
@@ -976,6 +1008,7 @@ void startCameraServer()
 
     ra_filter_init(&ra_filter, 20);
 
+#ifndef DISABLE_FACE_DETECTION
     mtmn_config.type = FAST;
     mtmn_config.min_face = 80;
     mtmn_config.pyramid = 0.707;
@@ -991,6 +1024,7 @@ void startCameraServer()
     mtmn_config.o_threshold.candidate_number = 1;
 
     face_id_init(&id_list, FACE_ID_SAVE_NUMBER, ENROLL_CONFIRM_TIMES);
+#endif
     Serial.printf("Starting web server on port: '%d'\n", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK)
     {
