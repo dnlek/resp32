@@ -1,0 +1,25 @@
+idf_component_register(
+    SRCS 
+        "main.c"
+        "../app_httpd.cpp"
+        "../wifi_provisioning.c"
+        "../socket_server.c"
+        "../robot_control.c"
+    INCLUDE_DIRS 
+        "."
+        ".."
+        "../include"
+    PRIV_REQUIRES 
+        esp_wifi
+        esp_netif
+        nvs_flash
+        esp_http_server
+        driver
+        wifi_provisioning
+        bt
+        esp_timer
+        lwip
+    REQUIRES
+        esp32-camera
+)
+
