@@ -683,6 +683,13 @@ static esp_err_t status_handler(httpd_req_t *req)
     static char json_response[1024];
 
     sensor_t *s = esp_camera_sensor_get();
+    if (!s)
+    {
+        ESP_LOGE("app_httpd", "Camera sensor not initialized in status_handler");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
     char *p = json_response;
     *p++ = '{';
 

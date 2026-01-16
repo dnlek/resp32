@@ -21,5 +21,7 @@ idf_component_register(
         lwip
     REQUIRES
         esp32-camera
+    COMPILE_OPTIONS
+        -DCAMERA_MODEL_WROVER_KIT
 )
 

@@ -59,7 +59,11 @@ static void wifi_prov_event_handler(void* arg, esp_event_base_t event_base,
 
 void wifi_provisioning_init(void)
 {
-    esp_netif_create_default_wifi_sta();
+    // Create netif only if it doesn't exist yet (may have been created in wifi_init_sta)
+    esp_netif_t *sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (sta_netif == NULL) {
+        esp_netif_create_default_wifi_sta();
+    }
     
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, 
                                                &wifi_prov_event_handler, NULL));
