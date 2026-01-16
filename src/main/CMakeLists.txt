@@ -23,5 +23,6 @@ idf_component_register(
         esp32-camera
     COMPILE_OPTIONS
         -DCAMERA_MODEL_WROVER_KIT
+        -DCONFIG_IDF_TARGET_ESP32S3
 )
 

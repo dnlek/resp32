@@ -116,10 +116,8 @@ static esp_err_t camera_init(void)
     
     // Log camera model being used
     #if defined(CAMERA_MODEL_WROVER_KIT)
-    ESP_LOGI(TAG, "Camera model: WROVER_KIT");
-    // WARNING: WROVER_KIT pins are designed for ESP32, not ESP32-S3
-    // Some pins (35, 39) are input-only on ESP32-S3 and may cause issues
-    ESP_LOGW(TAG, "Note: WROVER_KIT pins may not be optimal for ESP32-S3");
+    ESP_LOGI(TAG, "Camera model: WROVER_KIT (Elegoo ESP32S3-Camera-v1.3)");
+    ESP_LOGI(TAG, "Sensor: OV3660 (3MP)");
     #elif defined(CAMERA_MODEL_AI_THINKER)
     ESP_LOGI(TAG, "Camera model: AI_THINKER");
     #elif defined(CAMERA_MODEL_M5STACK_WIDE)
@@ -165,11 +163,11 @@ static esp_err_t camera_init(void)
     config.pixel_format = PIXFORMAT_JPEG;
 
     // Configure frame size based on PSRAM availability
-    // Start with conservative settings to avoid memory issues
+    // OV3660 supports up to 2048x1536 (3MP), but we use reasonable defaults
     if (psram_available) {
-        config.frame_size = FRAMESIZE_VGA;  // 640x480 - more conservative than SVGA
-        config.jpeg_quality = 12;
-        config.fb_count = 1;  // Start with single buffer to avoid allocation issues
+        config.frame_size = FRAMESIZE_SVGA;  // 800x600 - good balance for OV3660
+        config.jpeg_quality = 12;  // Good quality, reasonable size
+        config.fb_count = 2;  // Double buffering for smoother streaming
         // ESP32-S3: Frame buffers must be allocated in PSRAM when available
         config.fb_location = CAMERA_FB_IN_PSRAM;
     } else {
@@ -179,7 +177,7 @@ static esp_err_t camera_init(void)
         config.fb_location = CAMERA_FB_IN_DRAM;
     }
     
-    // ESP32-S3: Set grab mode (required field to prevent NULL pointer crash)
+    // ESP32-S3: Set grab mode (required field)
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
 
     ESP_LOGI(TAG, "Camera config: xclk=%d, sda=%d, scl=%d, pwdn=%d, reset=%d",
@@ -265,9 +263,14 @@ static esp_err_t camera_init(void)
         }
     }
 
-    // Basic orientation / default settings (tweak as needed)
+    // Basic orientation / default settings for OV3660
+    // Adjust these based on your physical camera mounting
     s->set_vflip(s, 0);
     s->set_hmirror(s, 0);
+    
+    // OV3660 specific optimizations
+    // Set initial frame size (can be changed via HTTP API)
+    s->set_framesize(s, FRAMESIZE_SVGA);  // 800x600 - good default for streaming
 
     ESP_LOGI(TAG, "Camera initialized successfully");
     return ESP_OK;
