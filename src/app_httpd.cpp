@@ -17,11 +17,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef DISABLE_CAMERA
 #include "esp_camera.h"
 #include "img_converters.h"
 #include "camera_index.h"
-#endif
 
 // Face detection can be disabled via build flag -DDISABLE_FACE_DETECTION in platformio.ini
 // or by uncommenting the line below:
@@ -957,7 +955,8 @@ static esp_err_t Test2_handler(httpd_req_t *req)
     httpd_resp_send(req, (const char *)"index", 5);
     return ESP_OK;
 }
-void startCameraServer()
+
+extern "C" void startCameraServer()
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 

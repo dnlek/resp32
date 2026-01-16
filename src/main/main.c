@@ -37,6 +37,7 @@ void robot_control_init(void);
 void robot_control_task(void *pvParameters);
 void reset_button_task(void *pvParameters);
 void wifi_monitor_task(void *pvParameters);
+void startCameraServer(void);
 
 // Pin definitions
 #define RXD2 33
@@ -225,7 +226,7 @@ void app_main(void)
     socket_server_init();
     
     // Initialize camera server (when enabled)
-    // startCameraServer(); // Uncomment when camera driver is fixed
+    startCameraServer();
     
     // Create tasks
     xTaskCreate(reset_button_task, "reset_button", 2048, NULL, 5, NULL);
