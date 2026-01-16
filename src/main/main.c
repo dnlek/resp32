@@ -122,6 +122,8 @@ static esp_err_t camera_init(void)
     ESP_LOGW(TAG, "Note: WROVER_KIT pins may not be optimal for ESP32-S3");
     #elif defined(CAMERA_MODEL_AI_THINKER)
     ESP_LOGI(TAG, "Camera model: AI_THINKER");
+    #elif defined(CAMERA_MODEL_M5STACK_WIDE)
+    ESP_LOGI(TAG, "Camera model: CAMERA_MODEL_M5STACK_WIDE");
     #elif defined(CAMERA_MODEL_ESP_EYE)
     ESP_LOGI(TAG, "Camera model: ESP_EYE");
     #else
@@ -145,12 +147,12 @@ static esp_err_t camera_init(void)
     config.ledc_timer = LEDC_TIMER_0;
     config.pin_d0 = Y2_GPIO_NUM;
     config.pin_d1 = Y3_GPIO_NUM;
-    config.pin_d2 = Y4_GPIO_NUM;
-    config.pin_d3 = Y5_GPIO_NUM;
-    config.pin_d4 = Y6_GPIO_NUM;
-    config.pin_d5 = Y7_GPIO_NUM;
-    config.pin_d6 = Y8_GPIO_NUM;
-    config.pin_d7 = Y9_GPIO_NUM;
+    // config.pin_d2 = Y4_GPIO_NUM;
+    // config.pin_d3 = Y5_GPIO_NUM;
+    // config.pin_d4 = Y6_GPIO_NUM;
+    // config.pin_d5 = Y7_GPIO_NUM;
+    // config.pin_d6 = Y8_GPIO_NUM;
+    // config.pin_d7 = Y9_GPIO_NUM;
     config.pin_xclk = XCLK_GPIO_NUM;
     config.pin_pclk = PCLK_GPIO_NUM;
     config.pin_vsync = VSYNC_GPIO_NUM;
@@ -192,12 +194,16 @@ static esp_err_t camera_init(void)
     // Initialize GPIO pins before camera init (ESP32-S3 may need this)
     // Set PWDN and RESET pins if they're not -1
     if (config.pin_pwdn >= 0) {
+        ESP_LOGI(TAG, "Setting PWDN to output mode.");
         gpio_reset_pin(config.pin_pwdn);
         gpio_set_direction(config.pin_pwdn, GPIO_MODE_OUTPUT);
+        ESP_LOGI(TAG, "Delaying for 10 milliseconds.");
+        vTaskDelay(pdMS_TO_TICKS(10));
         gpio_set_level(config.pin_pwdn, 0);  // Power on camera
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     if (config.pin_reset >= 0) {
+        ESP_LOGI(TAG, "Setting RESET to output mode.");
         gpio_reset_pin(config.pin_reset);
         gpio_set_direction(config.pin_reset, GPIO_MODE_OUTPUT);
         gpio_set_level(config.pin_reset, 1);  // Release reset
