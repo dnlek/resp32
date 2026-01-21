@@ -1,1 +1,9 @@
 .pio
+
+.cache/
+build/
+.pio/
+.vscode/
+.idea/
+.DS_Store
+managed_components/
