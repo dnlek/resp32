@@ -224,16 +224,4 @@ void app_main(void)
   ESP_LOGI(TAG, "Camera OK, starting camera server");
   vTaskDelay(pdMS_TO_TICKS(1000));
   start_camera_server();
-
-  while (1) {
-      vTaskDelay(pdMS_TO_TICKS(1000));
-      ESP_LOGI(TAG, "Getting frame");
-      camera_fb_t *fb = esp_camera_fb_get(); 
-      if (!fb) {
-        ESP_LOGE(TAG, "Failed to get frame"); 
-      } else { 
-        ESP_LOGI(TAG, "Got frame: %dx%d, %d bytes, format=%d", fb->width, fb->height, fb->len, fb->format); 
-        esp_camera_fb_return(fb); 
-      }
-  }
 }
