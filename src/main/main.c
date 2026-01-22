@@ -11,6 +11,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "camera_server.h"
+#include "driver/gpio.h"
+#include "driver/uart.h"
 #include "wifi_provisioning/manager.h"
 #include "wifi_provisioning/scheme_ble.h"
 
@@ -19,6 +21,11 @@ static const char *TAG = "PinTest";
 static EventGroupHandle_t wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 
+// Pin definitions
+#define RXD2 33
+#define TXD2 4
+#define RESET_BUTTON_PIN GPIO_NUM_0
+#define LED_PIN GPIO_NUM_13
 
 typedef struct {
     int pin_pwdn;
@@ -203,6 +210,23 @@ void app_main(void)
   ESP_ERROR_CHECK(ret);
 
   ESP_LOGI(TAG, "NVS initialized");
+
+  // Initialize GPIO
+  gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
+  gpio_set_level(LED_PIN, 1); // LED off initially
+  
+  // Initialize UART for robot communication
+  uart_config_t uart_config = {
+      .baud_rate = 9600,
+      .data_bits = UART_DATA_8_BITS,
+      .parity = UART_PARITY_DISABLE,
+      .stop_bits = UART_STOP_BITS_1,
+      .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+  };
+  uart_param_config(UART_NUM_2, &uart_config);
+  uart_set_pin(UART_NUM_2, TXD2, RXD2, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  uart_driver_install(UART_NUM_2, 1024, 1024, 0, NULL, 0);
+  ESP_LOGI(TAG, "UART initialized");
 
   ESP_LOGI(TAG, "Initializing network");
   wifi_init_sta();
