@@ -55,23 +55,8 @@ static void save_index(int32_t idx) {
     }
 }
 
-void init_camera(void) {
-  ESP_LOGI(TAG, "Initializing camera");
-  camera_config_t c = {
-    .pin_pwdn = -1,
-    .pin_reset = -1,
-    .pin_xclk = 15,
-    .pin_sccb_sda = 4,
-  };
-}
-
-void app_main(void)
-{
-  ESP_LOGI(TAG, "RobotCameraServer is starting");
-  ESP_LOGI(TAG, "Initializing NVS");
-  nvs_flash_init();
-  ESP_LOGI(TAG, "NVS initialized");
-
+static bool init_camera(void) {
+  
   cam_pins_t *p = &configs[0];
 
   camera_config_t c = {
@@ -101,27 +86,35 @@ void app_main(void)
   };
 
   esp_err_t err = esp_camera_init(&c);
+  return err == ESP_OK;
+}
 
-  if (err == ESP_OK) {
-      ESP_LOGI(TAG, "Camera OK");
+void app_main(void)
+{
+  ESP_LOGI(TAG, "RobotCameraServer is starting");
+  ESP_LOGI(TAG, "Initializing NVS");
+  nvs_flash_init();
+  ESP_LOGI(TAG, "NVS initialized");
+
+  bool camera_ok = init_camera();
+  if (!camera_ok) {
+    ESP_LOGE(TAG, "Camera failed to initialize");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    return;
+  }
+  ESP_LOGI(TAG, "Camera OK");
+  vTaskDelay(pdMS_TO_TICKS(1000));
+  // start_camera_server();
+
+  while (1) {
       vTaskDelay(pdMS_TO_TICKS(1000));
-      // start_camera_server();
-
-      while (1) {
-          vTaskDelay(pdMS_TO_TICKS(1000));
-          ESP_LOGI(TAG, "Getting frame");
-          camera_fb_t *fb = esp_camera_fb_get(); 
-          if (!fb) {
-            ESP_LOGE(TAG, "Failed to get frame"); 
-          } else { 
-            ESP_LOGI(TAG, "Got frame: %dx%d, %d bytes, format=%d", fb->width, fb->height, fb->len, fb->format); 
-            esp_camera_fb_return(fb); 
-          }
+      ESP_LOGI(TAG, "Getting frame");
+      camera_fb_t *fb = esp_camera_fb_get(); 
+      if (!fb) {
+        ESP_LOGE(TAG, "Failed to get frame"); 
+      } else { 
+        ESP_LOGI(TAG, "Got frame: %dx%d, %d bytes, format=%d", fb->width, fb->height, fb->len, fb->format); 
+        esp_camera_fb_return(fb); 
       }
   }
-
-  ESP_LOGE(TAG, "Camera failed");
-
-  vTaskDelay(pdMS_TO_TICKS(1000));
-  esp_restart();
 }
