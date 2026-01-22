@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
+#include "camera_server.h"
 
 static const char *TAG = "PinTest";
 
@@ -54,18 +55,24 @@ static void save_index(int32_t idx) {
     }
 }
 
+void init_camera(void) {
+  ESP_LOGI(TAG, "Initializing camera");
+  camera_config_t c = {
+    .pin_pwdn = -1,
+    .pin_reset = -1,
+    .pin_xclk = 15,
+    .pin_sccb_sda = 4,
+  };
+}
+
 void app_main(void)
 {
   ESP_LOGI(TAG, "RobotCameraServer is starting");
   ESP_LOGI(TAG, "Initializing NVS");
   nvs_flash_init();
   ESP_LOGI(TAG, "NVS initialized");
-  int idx = load_index();
-  if (idx < 0 || idx >= cfg_count) idx = 0;
 
-  cam_pins_t *p = &configs[idx];
-
-  ESP_LOGI(TAG, "Trying config %d", idx);
+  cam_pins_t *p = &configs[0];
 
   camera_config_t c = {
       .pin_pwdn  = p->pin_pwdn,
@@ -96,7 +103,9 @@ void app_main(void)
   esp_err_t err = esp_camera_init(&c);
 
   if (err == ESP_OK) {
-      ESP_LOGI(TAG, "Camera OK with config %d", idx);
+      ESP_LOGI(TAG, "Camera OK");
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      // start_camera_server();
 
       while (1) {
           vTaskDelay(pdMS_TO_TICKS(1000));
@@ -111,10 +120,7 @@ void app_main(void)
       }
   }
 
-  ESP_LOGE(TAG, "Camera failed with config %d", idx);
-
-  int next = (idx + 1) % cfg_count;
-  save_index(next);
+  ESP_LOGE(TAG, "Camera failed");
 
   vTaskDelay(pdMS_TO_TICKS(1000));
   esp_restart();
