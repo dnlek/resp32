@@ -3,12 +3,16 @@
 #include "esp_event.h"
 #include "esp_wifi.h"
 #include "esp_camera.h"
+#include "esp_bt.h"
+#include "esp_system.h"
+#include "esp_mac.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_system.h"
 #include "camera_server.h"
+#include "wifi_provisioning/manager.h"
+#include "wifi_provisioning/scheme_ble.h"
 
 static const char *TAG = "PinTest";
 
@@ -96,6 +100,49 @@ static bool init_camera(void) {
   return err == ESP_OK;
 }
 
+static bool wifi_credentials_exist(void)
+{
+    wifi_config_t config;
+    esp_err_t err = esp_wifi_get_config(WIFI_IF_STA, &config);
+
+    if (err == ESP_OK && strlen((char*)config.sta.ssid) > 0) {
+        return true;
+    }
+    return false;
+}
+
+static void start_ble_provisioning(void)
+{
+    ESP_LOGI("prov", "Starting BLE provisioning");
+
+    wifi_prov_mgr_config_t prov_cfg = {
+        .scheme = wifi_prov_scheme_ble,
+        .scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM
+    };
+
+    ESP_ERROR_CHECK(wifi_prov_mgr_init(prov_cfg));
+
+    bool provisioned = false;
+    wifi_prov_mgr_is_provisioned(&provisioned);
+
+    if (!provisioned) {
+        ESP_LOGI("prov", "Device not provisioned, starting provisioning");
+
+        wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
+        const char *pop = "abcd1234";   // proof-of-possession
+        const char *service_name = "RobiEye-12345";
+        uint8_t mac[6];
+        esp_read_mac(mac, ESP_MAC_WIFI_STA);
+        // char service_name[32];
+        sprintf(service_name, "RobiEye-%02X%02X", mac[4], mac[5]);
+        ESP_ERROR_CHECK(wifi_prov_mgr_start_provisioning(
+            security, pop, service_name, NULL));
+    } else {
+        ESP_LOGI("prov", "Already provisioned, starting WiFi");
+        wifi_prov_mgr_deinit();
+        esp_wifi_connect();
+    }
+}
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
   int32_t event_id, void *event_data)
@@ -127,21 +174,18 @@ void wifi_init_sta(void)
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-
   ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
 
-  wifi_config_t wifi_config = {
-      .sta = {
-          .ssid = "",
-          .password = "",
-      },
-  };
-
-  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_start());
-  // ESP_ERROR_CHECK(esp_wifi_connect());
+
+  if (wifi_credentials_exist()) { 
+    ESP_LOGI("wifi", "Found saved credentials, connecting");
+  } else {
+    ESP_LOGI("wifi", "No credentials found, starting provisioning");
+    start_ble_provisioning();
+  }
 }
 
 
