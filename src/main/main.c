@@ -174,7 +174,10 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(1000));
     return;
   }
-  ESP_LOGI(TAG, "Camera OK");
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_vflip(s, 1);
+  s->set_hmirror(s, 1);
+  ESP_LOGI(TAG, "Camera OK, starting camera server");
   vTaskDelay(pdMS_TO_TICKS(1000));
   start_camera_server();
 
